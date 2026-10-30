@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Homeschool Planner & Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA0Fhd_pSeouiugfanada4tbfifRG_WlPe",
+      authDomain: "homeschooltracker-7d824.firebaseapp.com",
+      projectId: "homeschooltracker-7d824",
+      storageBucket: "homeschooltracker-7d824.firebasestorage.app",
+      messagingSenderId: "799363312180",
+      appId: "1:799363312180:web:3966dd42d5119d630bb861",
+      measurementId: "G-R6K2GTMM29"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.logAttendanceCloud = async function() {
+      let today = new Date().toLocaleDateString();
+      try {
+        await addDoc(collection(db, "attendance"), { date: today, timestamp: new Date() });
+        alert("Attendance logged & synced to cloud!");
+        loadAttendance();
+      } catch (e) {
+        alert("Error logging attendance: " + e.message);
+      }
+    };
+
+    async function loadAttendance() {
+      let listEl = document.getElementById("attendance-list");
+      let countEl = document.getElementById("days-count");
+      let barEl = document.getElementById("progress-bar");
+      let percentEl = document.getElementById("progress-percent");
+
+      try {
+        const q = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
+        const querySnapshot = await getDocs(q);
+        let days = [];
+        querySnapshot.forEach((doc) => {
+          days.push(doc.data().date);
+        });
+
+        countEl.innerText = days.length;
+        let percent = Math.min(Math.round((days.length / 180) * 100), 100);
+        percentEl.innerText = percent + "%";
+        barEl.style.width = percent + "%";
+
+        if (days.length > 0) {
+          listEl.innerHTML = days.map(d => `<li class="py-2 flex justify-between"><span>📅 ${d}</span> <span class="text-emerald-600 font-semibold">Completed</span></li>`).join('');
+        } else {
+          listEl.innerHTML = `<li class="py-2 text-slate-400 italic">No days logged yet. Tap button above to add today.</li>`;
+        }
+      } catch (e) {
+        console.error("Error loading data", e);
+      }
+    }
+
+    loadAttendance();
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-4">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <header class="flex justify-between items-center bg-indigo-600 text-white p-4 rounded-xl shadow">
+      <div>
+        <h1 class="text-xl font-bold">Homeschool Hub</h1>
+        <p class="text-xs text-indigo-200">State: Indiana (180 Day Target)</p>
+      </div>
+      <button onclick="logAttendanceCloud()" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold px-3 py-2 rounded-lg text-sm transition">
+        + Log Today's Attendance
+      </button>
+    </header>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-white p-4 rounded-xl shadow border border-slate-100">
+        <span class="text-xs font-semibold text-slate-400 uppercase">Days Completed</span>
+        <div class="text-3xl font-extrabold text-indigo-600 mt-1" id="days-count">0</div>
+        <p class="text-xs text-slate-500 mt-1">Goal: 180 Days</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow border border-slate-100">
+        <span class="text-xs font-semibold text-slate-400 uppercase">School Year Progress</span>
+        <div class="text-3xl font-extrabold text-emerald-600 mt-1" id="progress-percent">0%</div>
+        <div class="w-full bg-slate-200 h-2 rounded-full mt-2 overflow-hidden">
+          <div id="progress-bar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow border border-slate-100 p-4">
+      <h2 class="font-bold text-lg mb-3">Recent Attendance Records</h2>
+      <ul id="attendance-list" class="divide-y divide-slate-100 text-sm">
+        <li class="py-2 text-slate-400 italic">Loading records...</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
