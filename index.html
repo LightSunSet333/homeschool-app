@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyA0Fhd_pSeouiugfanada4tbfifRG_WlPe",
@@ -22,9 +22,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    window.changeChild = function() {
-      loadData();
-    }
+    window.changeChild = function() { loadData(); }
 
     window.logAttendanceCloud = async function() {
       let child = document.getElementById("child-select").value;
@@ -33,25 +31,29 @@
         await addDoc(collection(db, "attendance"), { child: child, date: today, timestamp: new Date() });
         alert(`Attendance logged for ${child}!`);
         loadData();
-      } catch (e) {
-        alert("Error: " + e.message);
-      }
+      } catch (e) { alert("Error: " + e.message); }
     };
 
     window.saveLessonPlan = async function() {
       let child = document.getElementById("child-select").value;
       let subject = document.getElementById("lesson-subject").value;
       let details = document.getElementById("lesson-details").value;
-      if(!details) { alert("Please enter lesson details."); return; }
+      let status = document.getElementById("lesson-status").value;
+
+      if(!details) { alert("Please enter or generate lesson details."); return; }
 
       try {
-        await addDoc(collection(db, "lessons"), { child: child, subject: subject, details: details, timestamp: new Date() });
-        alert("AI / Custom Lesson saved to portfolio!");
+        await addDoc(collection(db, "lessons"), { 
+          child: child, 
+          subject: subject, 
+          details: details, 
+          status: status, // "Draft" or "Assigned"
+          timestamp: new Date() 
+        });
+        alert(`Lesson saved to ${child}'s profile as [${status}]!`);
         document.getElementById("lesson-details").value = "";
         loadData();
-      } catch (e) {
-        alert("Error: " + e.message);
-      }
+      } catch (e) { alert("Error: " + e.message); }
     }
 
     async function loadData() {
@@ -77,18 +79,28 @@
         }
       } catch (e) { console.error(e); }
 
-      // Load Saved Lessons
+      // Load Saved Lessons for Selected Child Only
       try {
         const q2 = query(collection(db, "lessons"), where("child", "==", child));
         const querySnapshot2 = await getDocs(q2);
         let lessons = [];
-        querySnapshot2.forEach((doc) => { lessons.push(doc.data()); });
+        querySnapshot2.forEach((doc) => { lessons.push({ id: doc.id, ...doc.data() }); });
 
         let lessonEl = document.getElementById("lesson-list");
         if (lessons.length > 0) {
-          lessonEl.innerHTML = lessons.map(l => `<li class="py-2 border-b border-slate-100"><span class="font-bold text-indigo-600">[${l.subject}]</span> <p class="text-xs text-slate-600 mt-1">${l.details}</p></li>`).join('');
+          lessonEl.innerHTML = lessons.map(l => `
+            <li class="py-2 border-b border-slate-100 flex justify-between items-start">
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="font-bold text-indigo-600 text-xs">[${l.subject}]</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full ${l.status === 'Assigned' ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-slate-100 text-slate-500'}">${l.status}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1 whitespace-pre-line">${l.details}</p>
+              </div>
+            </li>
+          `).join('');
         } else {
-          lessonEl.innerHTML = `<li class="py-2 text-slate-400 italic text-xs">No saved curriculum/lessons yet. Paste AI plans below!</li>`;
+          lessonEl.innerHTML = `<li class="py-2 text-slate-400 italic text-xs">No lessons logged yet for ${child}.</li>`;
         }
       } catch (e) { console.error(e); }
     }
@@ -131,22 +143,34 @@
       </div>
     </div>
 
-    <!-- AI Lesson Plan & Curriculum Saver -->
+    <!-- AI Lesson Plan & Curriculum Builder -->
     <div class="bg-white rounded-xl shadow border border-slate-100 p-4 space-y-3">
-      <h2 class="font-bold text-md text-indigo-900">✨ Add AI Lesson Plan / Quiz</h2>
-      <p class="text-xs text-slate-500">Ask me to generate a lesson plan or quiz, then paste it here to save it to your child's permanent portfolio!</p>
-      <div class="grid grid-cols-3 gap-2">
-        <select id="lesson-subject" class="col-span-1 bg-slate-100 border border-slate-300 text-xs rounded-lg p-2">
-          <option>Math</option>
-          <option>Science</option>
-          <option>Language Arts</option>
-          <option>History / Social Studies</option>
-          <option>Quiz / Test</option>
-        </select>
+      <h2 class="font-bold text-md text-indigo-900">✨ Lesson & Quiz Manager</h2>
+      
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[10px] text-slate-400 font-bold uppercase">Subject</label>
+          <select id="lesson-subject" class="w-full bg-slate-100 border border-slate-300 text-xs rounded-lg p-2">
+            <option>Math</option>
+            <option>Science</option>
+            <option>Language Arts</option>
+            <option>History / Social Studies</option>
+            <option>Quiz / Test</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 font-bold uppercase">Visibility Status</label>
+          <select id="lesson-status" class="w-full bg-slate-100 border border-slate-300 text-xs rounded-lg p-2">
+            <option value="Draft">Draft (Only Parent Sees)</option>
+            <option value="Assigned">Assigned (Active Today)</option>
+          </select>
+        </div>
       </div>
-      <textarea id="lesson-details" placeholder="Paste AI generated lesson plan, curriculum notes, or quiz questions here..." class="w-full h-24 text-xs p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+
+      <textarea id="lesson-details" placeholder="Paste AI lesson plans, notes, or quiz questions here..." class="w-full h-24 text-xs p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+      
       <button onclick="saveLessonPlan()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs transition">
-        Save Lesson / Quiz to Child's Profile
+        Save Lesson / Quiz to Selected Child's Profile
       </button>
     </div>
 
@@ -159,7 +183,7 @@
         </ul>
       </div>
       <div class="bg-white rounded-xl shadow border border-slate-100 p-4">
-        <h3 class="font-bold text-sm mb-2 text-slate-700">Saved Curricula & Quizzes</h3>
+        <h3 class="font-bold text-sm mb-2 text-slate-700">Child's Curriculum & Quizzes</h3>
         <ul id="lesson-list" class="max-h-48 overflow-y-auto">
           <li class="py-2 text-slate-400 italic text-xs">Loading...</li>
         </ul>
