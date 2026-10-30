@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, where, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyA0Fhd_pSeouiugfanada4tbfifRG_WlPe",
@@ -31,7 +31,9 @@
         await addDoc(collection(db, "attendance"), { child: child, date: today, timestamp: new Date() });
         alert(`Attendance logged for ${child}!`);
         loadData();
-      } catch (e) { alert("Error: " + e.message); }
+      } catch (e) { 
+        alert("Error logging attendance: " + e.message); 
+      }
     };
 
     window.saveLessonPlan = async function() {
@@ -40,21 +42,21 @@
       let details = document.getElementById("lesson-details").value;
       let status = document.getElementById("lesson-status").value;
 
-      if(!details) { alert("Please enter or generate lesson details."); return; }
+      if(!details) { alert("Please enter lesson details."); return; }
 
       try {
         await addDoc(collection(db, "lessons"), { 
           child: child, 
           subject: subject, 
           details: details, 
-          status: status, // "Draft" or "Assigned"
+          status: status,
           timestamp: new Date() 
         });
-        alert(`Lesson saved to ${child}'s profile as [${status}]!`);
+        alert(`Saved as ${status} for ${child}!`);
         document.getElementById("lesson-details").value = "";
         loadData();
       } catch (e) { alert("Error: " + e.message); }
-    }
+    };
 
     async function loadData() {
       let child = document.getElementById("child-select").value;
@@ -79,7 +81,7 @@
         }
       } catch (e) { console.error(e); }
 
-      // Load Saved Lessons for Selected Child Only
+      // Load Saved Lessons
       try {
         const q2 = query(collection(db, "lessons"), where("child", "==", child));
         const querySnapshot2 = await getDocs(q2);
@@ -89,18 +91,16 @@
         let lessonEl = document.getElementById("lesson-list");
         if (lessons.length > 0) {
           lessonEl.innerHTML = lessons.map(l => `
-            <li class="py-2 border-b border-slate-100 flex justify-between items-start">
-              <div>
-                <div class="flex items-center space-x-2">
-                  <span class="font-bold text-indigo-600 text-xs">[${l.subject}]</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full ${l.status === 'Assigned' ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-slate-100 text-slate-500'}">${l.status}</span>
-                </div>
-                <p class="text-xs text-slate-600 mt-1 whitespace-pre-line">${l.details}</p>
+            <li class="py-2 border-b border-slate-100">
+              <div class="flex items-center space-x-2 mb-1">
+                <span class="font-bold text-indigo-600 text-xs">[${l.subject}]</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full ${l.status === 'Assigned' ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-slate-100 text-slate-500'}">${l.status}</span>
               </div>
+              <div class="text-xs text-slate-600 leading-relaxed whitespace-pre-line">${l.details}</div>
             </li>
           `).join('');
         } else {
-          lessonEl.innerHTML = `<li class="py-2 text-slate-400 italic text-xs">No lessons logged yet for ${child}.</li>`;
+          lessonEl.innerHTML = `<li class="py-2 text-slate-400 italic text-xs">No lessons or curriculum saved yet for ${child}.</li>`;
         }
       } catch (e) { console.error(e); }
     }
@@ -115,8 +115,8 @@
       <div class="flex justify-between items-center">
         <h1 class="text-xl font-bold">Homeschool Hub</h1>
         <select id="child-select" onchange="changeChild()" class="bg-indigo-700 text-white font-semibold px-3 py-1 rounded-lg text-sm border border-indigo-400 focus:outline-none">
-          <option value="Child 1">Child 1 (8th Grade)</option>
-          <option value="Child 2">Child 2 (2nd Grade)</option>
+          <option value="Ethan (8th Grade)">Ethan (8th Grade)</option>
+          <option value="Elena (2nd Grade)">Elena (2nd Grade)</option>
         </select>
       </div>
       <div class="flex justify-between items-center pt-2 border-t border-indigo-500">
@@ -145,7 +145,7 @@
 
     <!-- AI Lesson Plan & Curriculum Builder -->
     <div class="bg-white rounded-xl shadow border border-slate-100 p-4 space-y-3">
-      <h2 class="font-bold text-md text-indigo-900">✨ Lesson & Quiz Manager</h2>
+      <h2 class="font-bold text-md text-indigo-900">✨ Lesson & Curriculum Manager</h2>
       
       <div class="grid grid-cols-2 gap-2">
         <div>
@@ -159,18 +159,18 @@
           </select>
         </div>
         <div>
-          <label class="text-[10px] text-slate-400 font-bold uppercase">Visibility Status</label>
+          <label class="text-[10px] text-slate-400 font-bold uppercase">Save As</label>
           <select id="lesson-status" class="w-full bg-slate-100 border border-slate-300 text-xs rounded-lg p-2">
-            <option value="Draft">Draft (Only Parent Sees)</option>
+            <option value="Draft">Draft (Parent Review)</option>
             <option value="Assigned">Assigned (Active Today)</option>
           </select>
         </div>
       </div>
 
-      <textarea id="lesson-details" placeholder="Paste AI lesson plans, notes, or quiz questions here..." class="w-full h-24 text-xs p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+      <textarea id="lesson-details" placeholder="Paste existing curriculum notes, textbooks excerpts, or AI lesson plans here..." class="w-full h-28 text-xs p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
       
       <button onclick="saveLessonPlan()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs transition">
-        Save Lesson / Quiz to Selected Child's Profile
+        Save Curriculum / Lesson to Child's Profile
       </button>
     </div>
 
