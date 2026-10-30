@@ -28,10 +28,15 @@
       let child = document.getElementById("child-select").value;
       let today = new Date().toLocaleDateString();
       try {
-        await addDoc(collection(db, "attendance"), { child: child, date: today, timestamp: new Date() });
+        await addDoc(collection(db, "attendance"), { 
+          child: child, 
+          date: today, 
+          timestamp: new Date() 
+        });
         alert(`Attendance logged for ${child}!`);
         loadData();
       } catch (e) { 
+        console.error("Attendance Error:", e);
         alert("Error logging attendance: " + e.message); 
       }
     };
@@ -55,7 +60,10 @@
         alert(`Saved as ${status} for ${child}!`);
         document.getElementById("lesson-details").value = "";
         loadData();
-      } catch (e) { alert("Error: " + e.message); }
+      } catch (e) { 
+        console.error("Lesson Error:", e);
+        alert("Error saving lesson: " + e.message); 
+      }
     };
 
     async function loadData() {
@@ -79,7 +87,7 @@
         } else {
           listEl.innerHTML = `<li class="py-1 text-slate-400 italic text-xs">No attendance logged yet for ${child}.</li>`;
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Load Attendance Error:", e); }
 
       // Load Saved Lessons
       try {
@@ -102,7 +110,7 @@
         } else {
           lessonEl.innerHTML = `<li class="py-2 text-slate-400 italic text-xs">No lessons or curriculum saved yet for ${child}.</li>`;
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Load Lessons Error:", e); }
     }
 
     loadData();
